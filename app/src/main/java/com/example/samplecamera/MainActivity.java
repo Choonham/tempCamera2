@@ -181,11 +181,13 @@ public class MainActivity extends AppCompatActivity {
     private void takePicture() throws CameraAccessException {
         if(cameraDevice == null) return;
 
+        // getSystemService() 를 사용하여 CameraManager 객체 참조
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
 
         CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
         Size[] jpegSizes = null;
 
+        //StreamConfigurationMap 객체에서 사진 사이즈 정보를 얻어 온다.
         jpegSizes = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP).getOutputSizes(ImageFormat.JPEG);
 
         int width = 640;
@@ -196,29 +198,41 @@ public class MainActivity extends AppCompatActivity {
             height = jpegSizes[0].getHeight();
         }
 
+        // 파일 저장을 위한 ImageReader
         ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.JPEG, 1);
+
+        // 카메라의 출력을 프리뷰, 사진, 동영상 등의 형태로 전송할 수 있는데, 각각의 출력을 surface 라고 한다.
         List<Surface> outputSurfaces = new ArrayList<>(2);
+
+        // ImageReader 객체의 Surface 객체 삽입
         outputSurfaces.add(reader.getSurface());
 
+        // 기존에 출력하고 있던 미리보기 화면의 SurfaceTexture
         outputSurfaces.add(new Surface(textureView.getSurfaceTexture()));
 
+        // 리퀘스트 설정
         final CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
         captureBuilder.addTarget(reader.getSurface());
         captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
 
+        // 캡쳐 화면의 방향 설정
         int rotation = getWindowManager().getDefaultDisplay().getRotation();
         captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
 
+        // 사진 이름 설정
         Long tsLong  = System.currentTimeMillis()/1000;
         String ts = tsLong.toString();
 
+        // 파일 생성
         file = new File(Environment.getExternalStorageDirectory()+"/DCIM", "pic.jpg");
 
+        // ImageReader 객체를 생성했을 때, 콜백되는 메서드
         ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
             @Override
             public void onImageAvailable(ImageReader imageReader) {
                 Image image = null;
-
+                Log.d("123", "22");
+                // ImageReader 객체에 가장 마지막에 추가된 image 객체 참조
                 image = reader.acquireLatestImage();
                 ByteBuffer buffer = image.getPlanes()[0].getBuffer();
                 byte[] bytes = new byte[buffer.capacity()];
@@ -238,8 +252,10 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
+        // ImageReader 객체를 생성했을 때, 콜백되는 메서드
         reader.setOnImageAvailableListener(readerListener, mBackgroundHandler);
 
+        // 이미지 캡쳐가 완료되었을 때, 다시 카메라 미리보기를 동작시키는 콜백 함수
         final CameraCaptureSession.CaptureCallback captureCallback = new CameraCaptureSession.CaptureCallback() {
             @Override
             public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
